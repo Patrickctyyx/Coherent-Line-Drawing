@@ -3,6 +3,7 @@
 using namespace cv;
 
 // Eq.(8)
+// inline 为了解决频繁调用小函数大量消耗栈内存的问题
 inline double gauss(double x, double mean, double sigma) {
 	return (exp((-(x - mean)*(x - mean)) / (2 * sigma*sigma)) / sqrt(M_PI * 2.0 * sigma * sigma));
 }
@@ -64,6 +65,7 @@ void CLD::readSrc(string file) {
 
 void CLD::genCLD() {
 	Mat originalImg_32FC1 = Mat::zeros(Size(originalImg.cols, originalImg.rows), CV_32FC1);
+	// 像素值变为原来的 255 分之一
 	originalImg.convertTo(originalImg_32FC1, CV_32FC1, 1.0 / 255.0);
 
 	gradientDoG(originalImg_32FC1, DoG, this->rho, this->sigma_c);
@@ -156,6 +158,7 @@ void CLD::gradientDoG(Mat & src, Mat & dst, const double rho, const double sigma
 			double gau_c_weight_acc = 0;
 			double gau_s_weight_acc = 0;
 			Vec3f tmp = etf.flowField.at<Vec3f>(y, x);
+			// Point2f 和 Vec2f 相似，也是一种存取像素的方法
 			Point2f gradient = Point2f(-tmp[0], tmp[1]);
 
 			if (gradient.x == 0 && gradient.y == 0) continue;
@@ -185,6 +188,7 @@ void CLD::gradientDoG(Mat & src, Mat & dst, const double rho, const double sigma
 	}
 }
 
+// 二值化
 void CLD::binaryThresholding(Mat & src, Mat & dst, const double tau) {
 #pragma omp parallel for
 	for (int y = 0; y < dst.rows; y++) {
@@ -214,5 +218,6 @@ void CLD::combineImage() {
 	}
 
 	// Blur a little-bit to let image more smooth
+	// 最后两个参数为 x y 方向的标准差
 	GaussianBlur(originalImg, originalImg, Size(3, 3), 0, 0);
 }

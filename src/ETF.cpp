@@ -27,6 +27,8 @@ void ETF::Init(Size s) {
  * by taking perpendicular vectors(counter-clockwise) from gradient map
  */
 void ETF::initial_ETF(string file, Size s) {
+	// 把各个参数的大小改变成原图像的大小
+	// 这些参数原本就有一个默认的大小
 	resizeMat(s);
 
 	Mat src = imread(file, 1);
