@@ -44,10 +44,10 @@ void CLD::init(Size s) {
 
 	etf.Init(s);
 
-	sigma_m = 3.0;
-	sigma_c = 1.0;
-	rho = 0.997;
-	tau = 0.8;
+	sigma_m = 3.0;  // 高斯函数方差，用于另一个方向的加权
+	sigma_c = 1.0;  // 高斯函数方差，用于计算差分
+	rho = 0.997;  // 控制噪声监测的等级
+	tau = 0.8;  // 二值化的阈值
 }
 
 void CLD::readSrc(string file) {
@@ -92,10 +92,11 @@ void CLD::flowDoG(Mat & src, Mat & dst, const double sigma_m) {
 			double gau_m_acc = -gau_m[0] * src.at<float>(y, x);
 			double gau_m_weight_acc = -gau_m[0];
 				
-			// Intergral alone ETF
+			// 沿着 ETF 的方向积分
 			Point2f pos(x, y);
 			for (int step = 0; step < kernel_half; step++) {
 				Vec3f tmp = etf.flowField.at<Vec3f>((int)round(pos.y), (int)round(pos.x));
+				// 方向和流向量相同
 				Point2f direction = Point2f(tmp[1], tmp[0]);
 
 				if (direction.x == 0 && direction.y == 0) break;
@@ -104,19 +105,20 @@ void CLD::flowDoG(Mat & src, Mat & dst, const double sigma_m) {
 				float value = src.at<float>((int)round(pos.y), (int)round(pos.x));
 				float weight = gau_m[step];
 
-				gau_m_acc += value*weight;
+				gau_m_acc += value * weight;
 				gau_m_weight_acc += weight;
 
-				// move alone ETF direction 
+				// move along ETF direction 
 				pos += direction;
 				
 				if ((int)round(pos.x) < 0 || (int)round(pos.x) > img_w - 1 || (int)round(pos.y) < 0 || (int)round(pos.y) > img_h - 1) break;
 			}
 
-			// Intergral alone inverse ETF
+			// 沿着 ETF 反方向积分
 			pos = Point2f(x, y);
 			for (int step = 0; step < kernel_half; step++) {
 				Vec3f tmp = -etf.flowField.at<Vec3f>((int)round(pos.y), (int)round(pos.x));
+				// 方向和流向量相反
 				Point2f direction = Point2f(tmp[1], tmp[0]);
 
 				if (direction.x == 0 && direction.y == 0) break;
@@ -125,7 +127,7 @@ void CLD::flowDoG(Mat & src, Mat & dst, const double sigma_m) {
 				float value = src.at<float>((int)round(pos.y), (int)round(pos.x));
 				float weight = gau_m[step];
 
-				gau_m_acc += value*weight;
+				gau_m_acc += value * weight;
 				gau_m_weight_acc += weight;
 
 				// move alone ETF direction 
@@ -153,17 +155,23 @@ void CLD::gradientDoG(Mat & src, Mat & dst, const double rho, const double sigma
 #pragma omp parallel for
 	for (int y = 0; y < dst.rows; y++) {
 		for (int x = 0; x < dst.cols; x++) {
+			// 窗口中各个点卷积之后的值
 			double gau_c_acc = 0;
 			double gau_s_acc = 0;
-			double gau_c_weight_acc = 0;
+			// 窗口中各个点的总权重
+			double gau_c_weight_acc = 0;  
 			double gau_s_weight_acc = 0;
 			Vec3f tmp = etf.flowField.at<Vec3f>(y, x);
 			// Point2f 和 Vec2f 相似，也是一种存取像素的方法
+			// 梯度向量垂直于流向量
 			Point2f gradient = Point2f(-tmp[0], tmp[1]);
 
 			if (gradient.x == 0 && gradient.y == 0) continue;
 			
+			// 在窗口中进行操作
 			for (int step = -kernel; step <= kernel; step++) {
+				// 窗口是沿着流的形状
+				// x，y 根据梯度来确定
 				double row = y + gradient.y * step;
 				double col = x + gradient.x * step;
 
@@ -175,6 +183,7 @@ void CLD::gradientDoG(Mat & src, Mat & dst, const double rho, const double sigma
 				double gau_c_weight = (gau_idx >= gau_c.size()) ? 0.0 : gau_c[gau_idx];
 				double gau_s_weight = gau_s[gau_idx];
 
+				// 计算窗口中的每个点
 				gau_c_acc += value * gau_c_weight;
 				gau_s_acc += value * gau_s_weight;
 				gau_c_weight_acc += gau_c_weight;
@@ -183,7 +192,8 @@ void CLD::gradientDoG(Mat & src, Mat & dst, const double rho, const double sigma
 
 			double v_c = gau_c_acc / gau_c_weight_acc;
 			double v_s = gau_s_acc / gau_s_weight_acc;
-			dst.at<float>(y, x) = v_c - rho*v_s;
+			// 差分
+			dst.at<float>(y, x) = v_c - rho * v_s;
 		}
 	}
 }

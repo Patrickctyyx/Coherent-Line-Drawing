@@ -42,8 +42,8 @@ void ETF::initial_ETF(string file, Size s) {
 
 	// Generate grad_x and grad_y
 	Mat grad_x, grad_y, abs_grad_x, abs_grad_y;
-	// 第二个参数书输出
-	// 第三四个参数时 x，y 上的查分结束
+	// 第二个参数是输出
+	// 第三四个参数是 x，y 上的差分结束
 	// 第五个参数是 Sobel 核的大小
 	Sobel(src_n, grad_x, CV_32FC1, 1, 0, 5);
 	Sobel(src_n, grad_y, CV_32FC1, 0, 1, 5);
@@ -66,7 +66,7 @@ void ETF::initial_ETF(string file, Size s) {
 			Vec3f u = grad_x.at<Vec3f>(i, j);
 			Vec3f v = grad_y.at<Vec3f>(i, j);
 
-			// 三个参数应该是三个通道的值？
+			// 三个参数是三个通道的值
 			flowField.at<Vec3f>(i, j) = normalize(Vec3f(v.val[0], u.val[0], 0));
 		}
 	}
